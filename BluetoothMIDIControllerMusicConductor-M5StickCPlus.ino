@@ -37,11 +37,11 @@ const unsigned long debounceDelay = 200;
 
 float lastGx = 0;
 bool peakDetected = false;
-const float peakThreshold = 10.0; // Adjust this value based on your testing
+const float peakThreshold = 9.9; // Adjust this value based on your testing
 
 void setup() {
   M5.begin();
-  M5.Lcd.setRotation(3);
+  M5.Lcd.setRotation(1);
   MIDI.begin();
 
   BLEMIDI.setHandleConnected([]() {

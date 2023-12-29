@@ -124,7 +124,7 @@ void changeNote() {
   
   // Map the magnitude to MIDI velocity range (0-127). Adjust scaling as needed.
   int velocity = map(magnitude, 0, 4, 0, 127); // Adjust the '20' as per your max expected acceleration
-  velocity = constrain(velocity, 32, 127); // Ensure the velocity is within MIDI range
+  velocity = constrain(velocity, 64, 127); // Ensure the velocity is within MIDI range
 
   MIDI.sendNoteOn(currentNote, velocity, 1);
 

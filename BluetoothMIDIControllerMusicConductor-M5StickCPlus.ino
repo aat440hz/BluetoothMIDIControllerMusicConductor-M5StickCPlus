@@ -14,7 +14,6 @@ int numPlayingNotes = 0;
 
 int currentKeyIndex = 0;
 const int numKeys = 13;
-int currentKey = 0;
 
 // Define the scales for each key signature
 int cMinorScale[] = {48, 50, 51, 53, 55, 56, 58, 60, 62, 63, 65, 67};
@@ -35,6 +34,8 @@ int bButtonPressCount = 0;
 unsigned long lastBButtonPressTime = 0;
 const unsigned long debounceDelay = 200;
 
+float ax, ay, az; // Accelerometer values
+
 float lastGx = 0;
 bool peakDetected = false;
 const float peakThreshold = 9.9; // Adjust this value based on your testing
@@ -42,27 +43,29 @@ const float peakThreshold = 9.9; // Adjust this value based on your testing
 void setup() {
   M5.begin();
   M5.Lcd.setRotation(1);
-  MIDI.begin();
+  MIDI.begin(MIDI_CHANNEL_OMNI);
 
   BLEMIDI.setHandleConnected([]() {
     isConnected = true;
+    // You might want to add some code here to handle when the device connects.
   });
 
   BLEMIDI.setHandleDisconnected([]() {
     isConnected = false;
+    // You might want to add some code here to handle when the device disconnects.
   });
 
   M5.Imu.Init();
-
   updateDisplay();
 }
 
 void loop() {
   M5.update();
-  MIDI.read();
+  BLEMIDI.read();
 
   float gx, gy, gz;
   M5.Imu.getGyroData(&gx, &gy, &gz);
+  M5.Imu.getAccelData(&ax, &ay, &az);
 
   if (isConnected) {
     if (M5.BtnA.isPressed()) {
@@ -71,10 +74,8 @@ void loop() {
         notePlaying = true;
       }
 
-      // Calculate the difference in gyroscope
       float deltaGx = gx - lastGx;
 
-      // Check for a significant change in rotation
       if ((lastGx < 0 && gx > 0 && abs(deltaGx) > peakThreshold) || 
           (lastGx > 0 && gx < 0 && abs(deltaGx) > peakThreshold)) {
         peakDetected = true;
@@ -98,22 +99,14 @@ void loop() {
     }
 
     if (M5.BtnB.wasReleased()) {
-      if (notePlaying) {
-        for (int i = 0; i < numPlayingNotes; i++) {
-          MIDI.sendNoteOff(playingNotes[i], 0, 1);
-        }
-        numPlayingNotes = 0;
-        notePlaying = false;
-      } else {
-        unsigned long currentMillis = millis();
-        if (currentMillis - lastBButtonPressTime > debounceDelay) {
-          lastBButtonPressTime = currentMillis;
-          bButtonPressCount++;
-          if (bButtonPressCount >= 3) {
-            currentKeyIndex = (currentKeyIndex + 1) % numKeys;
-            updateDisplay();
-            bButtonPressCount = 0;
-          }
+      unsigned long currentMillis = millis();
+      if (currentMillis - lastBButtonPressTime > debounceDelay) {
+        lastBButtonPressTime = currentMillis;
+        bButtonPressCount++;
+        if (bButtonPressCount >= 3) {
+          currentKeyIndex = (currentKeyIndex + 1) % numKeys;
+          updateDisplay();
+          bButtonPressCount = 0;
         }
       }
     }
@@ -125,7 +118,15 @@ void loop() {
 void changeNote() {
   int randomIndex = random(12);
   currentNote = getScaleForCurrentKey()[randomIndex];
-  MIDI.sendNoteOn(currentNote, 100, 1);
+  
+  // Calculate the magnitude of acceleration
+  float magnitude = sqrt(ax * ax + ay * ay + az * az);
+  
+  // Map the magnitude to MIDI velocity range (0-127). Adjust scaling as needed.
+  int velocity = map(magnitude, 0, 4, 0, 127); // Adjust the '20' as per your max expected acceleration
+  velocity = constrain(velocity, 32, 127); // Ensure the velocity is within MIDI range
+
+  MIDI.sendNoteOn(currentNote, velocity, 1);
 
   if (numPlayingNotes < maxNotes) {
     playingNotes[numPlayingNotes] = currentNote;
@@ -134,12 +135,11 @@ void changeNote() {
 }
 
 void updateDisplay() {
-  M5.Lcd.fillScreen(TFT_BLACK);
+  M5.Lcd.fillScreen(BLACK);
+  M5.Lcd.setCursor(0, 0);
   M5.Lcd.setTextSize(2);
-  M5.Lcd.setTextColor(TFT_WHITE);
-  M5.Lcd.setCursor(10, 10);
+  M5.Lcd.setTextColor(WHITE);
   M5.Lcd.println("Current Key:");
-  M5.Lcd.setCursor(20, 60);
   M5.Lcd.println(getKeyString(currentKeyIndex));
 }
 

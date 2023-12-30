@@ -135,11 +135,12 @@ void changeNote() {
 }
 
 void updateDisplay() {
-  M5.Lcd.fillScreen(BLACK);
-  M5.Lcd.setCursor(0, 0);
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.setTextColor(WHITE);
+  M5.Lcd.fillScreen(TFT_BLACK);
+  M5.Lcd.setTextSize(2); // Increase text size
+  M5.Lcd.setTextColor(TFT_WHITE);
+  M5.Lcd.setCursor(10, 10); // Adjust the cursor position
   M5.Lcd.println("Current Key:");
+  M5.Lcd.setCursor(20, 60);
   M5.Lcd.println(getKeyString(currentKeyIndex));
 }
 

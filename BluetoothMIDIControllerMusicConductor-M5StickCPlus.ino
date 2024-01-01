@@ -47,12 +47,12 @@ void setup() {
 
   BLEMIDI.setHandleConnected([]() {
     isConnected = true;
-    // Add code here if you want to do something when connected
+    // You might want to add some code here to handle when the device connects.
   });
 
   BLEMIDI.setHandleDisconnected([]() {
     isConnected = false;
-    // Add code here if you want to do something when disconnected
+    // You might want to add some code here to handle when the device disconnects.
   });
 
   M5.Imu.Init();
@@ -85,17 +85,17 @@ void loop() {
 
       if (peakDetected) {
         for (int i = 0; i < numPlayingNotes; i++) {
-          turnOffAllNotes();
+          MIDI.sendNoteOff(playingNotes[i], 0, 1);
         }
         numPlayingNotes = 0;
         notePlaying = false;
       }
-    } else {
-      // When Button A is no longer pressed, turn off all notes
-      if(notePlaying) {
-        turnOffAllNotes();
-        notePlaying = false;
+    } else if (notePlaying) {
+      for (int i = 0; i < numPlayingNotes; i++) {
+        MIDI.sendNoteOff(playingNotes[i], 0, 1);
       }
+      numPlayingNotes = 0;
+      notePlaying = false;
     }
 
     if (M5.BtnB.wasReleased()) {
@@ -116,38 +116,29 @@ void loop() {
 }
 
 void changeNote() {
-  // Turn off the currently playing note before changing
-  if(currentNote != -1) {
-    MIDI.sendNoteOff(currentNote, 0, 1);
-  }
-
   int randomIndex = random(12);
   currentNote = getScaleForCurrentKey()[randomIndex];
   
+  // Calculate the magnitude of acceleration
   float magnitude = sqrt(ax * ax + ay * ay + az * az);
-  int velocity = map(magnitude, 0, 4, 0, 127);
-  velocity = constrain(velocity, 64, 127);
+  
+  // Map the magnitude to MIDI velocity range (0-127). Adjust scaling as needed.
+  int velocity = map(magnitude, 0, 4, 0, 127); // Adjust the '20' as per your max expected acceleration
+  velocity = constrain(velocity, 64, 127); // Ensure the velocity is within MIDI range
 
   MIDI.sendNoteOn(currentNote, velocity, 1);
 
   if (numPlayingNotes < maxNotes) {
-    playingNotes[0] = currentNote; // Considering maxNotes is 1
-    numPlayingNotes = 1; // Resetting to 1 as we're playing a new note
+    playingNotes[numPlayingNotes] = currentNote;
+    numPlayingNotes++;
   }
-}
-
-void turnOffAllNotes() {
-  for (int i = 0; i < numPlayingNotes; i++) {
-    MIDI.sendNoteOff(playingNotes[i], 0, 1);
-  }
-  numPlayingNotes = 0;
 }
 
 void updateDisplay() {
   M5.Lcd.fillScreen(TFT_BLACK);
-  M5.Lcd.setTextSize(2);
+  M5.Lcd.setTextSize(2); // Increase text size
   M5.Lcd.setTextColor(TFT_WHITE);
-  M5.Lcd.setCursor(10, 10);
+  M5.Lcd.setCursor(10, 10); // Adjust the cursor position
   M5.Lcd.println("Current Key:");
   M5.Lcd.setCursor(20, 60);
   M5.Lcd.println(getKeyString(currentKeyIndex));
